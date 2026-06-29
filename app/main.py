@@ -13,10 +13,14 @@ from fastapi.responses import RedirectResponse
 from .agents.journey import JourneyAgent
 from .agents.orchestrator import Orchestrator
 from .config import settings
-from .data import mock_data as md
+from .db import repository as repo
+from .db.seed import init_and_seed
 from .llm import LLMClient
 from .schemas import ChatRequest, ChatResponse
 from .store import Store
+
+# Create tables and seed reference (+ demo) data before building singletons.
+init_and_seed()
 
 app = FastAPI(
     title=f"{settings.app_name} API",
@@ -70,13 +74,13 @@ def chat(request: ChatRequest) -> ChatResponse:
 # --------------------------------------------------------------------------- #
 @app.get("/api/doctors")
 def list_doctors(department: str | None = None) -> dict:
-    doctors = md.doctors_in(department) if department else md.DOCTORS
+    doctors = repo.doctors_in(department) if department else repo.all_doctors()
     return {"count": len(doctors), "doctors": doctors}
 
 
 @app.get("/api/departments")
 def list_departments() -> dict:
-    return {"departments": md.DEPARTMENTS}
+    return {"departments": repo.list_departments()}
 
 
 # --------------------------------------------------------------------------- #

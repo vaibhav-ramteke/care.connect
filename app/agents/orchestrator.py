@@ -83,7 +83,7 @@ class Orchestrator:
         # 2) Intent + journey stage.
         intent = self.intent_detector.detect(request.message)
         stage = self.journey_agent.detect(intent, session["journey_stage"])
-        session["journey_stage"] = stage
+        self.store.set_journey_stage(session, stage)
 
         ctx = AgentContext(
             message=request.message,
@@ -116,7 +116,7 @@ class Orchestrator:
         self, request: ChatRequest, session: dict, red_flag: str
     ) -> ChatResponse:
         stage = "symptom_discovery"
-        session["journey_stage"] = stage
+        self.store.set_journey_stage(session, stage)
 
         reply = (
             f"{g.EMERGENCY_DISCLAIMER}\n\n"

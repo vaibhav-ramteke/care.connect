@@ -7,6 +7,7 @@ fallback reply, then optionally lets the LLM rephrase those facts (hybrid).
 from __future__ import annotations
 
 from ..data import mock_data as md
+from ..db import repository as repo
 from ..safety import guardrails as g
 from .base import AgentContext, AgentResult, BaseAgent
 
@@ -33,7 +34,7 @@ class SymptomGuidanceAgent(BaseAgent):
                 f"handled by the {dept} department. You can book an appointment, "
                 f"or seek emergency care if things suddenly get worse."
             )
-            data = {"recommended_department": dept, "doctors": md.doctors_in(dept)}
+            data = {"recommended_department": dept, "doctors": repo.doctors_in(dept)}
             actions = ["Find a doctor", "Book appointment", "Talk to a nurse"]
         else:
             facts = (
@@ -48,7 +49,7 @@ class SymptomGuidanceAgent(BaseAgent):
                 "you to a nurse?"
             )
             data = {"recommended_department": "General Medicine",
-                    "doctors": md.doctors_in("General Medicine")}
+                    "doctors": repo.doctors_in("General Medicine")}
             actions = ["Find a doctor", "Book appointment", "Talk to a nurse"]
 
         reply, used = self.phrase(ctx, facts, fallback)
@@ -70,7 +71,7 @@ class DoctorFinderAgent(BaseAgent):
 
     def handle(self, ctx: AgentContext) -> AgentResult:
         dept = md.match_department(ctx.message)
-        doctors = md.doctors_in(dept) if dept else md.DOCTORS
+        doctors = repo.doctors_in(dept) if dept else repo.all_doctors()
 
         lines = [
             f"- {d['name']} ({d['department']}) — fee Rs.{d['fee']}, "
@@ -118,10 +119,10 @@ class AppointmentAgent(BaseAgent):
 
     # -- book ----------------------------------------------------------
     def _book(self, ctx: AgentContext) -> AgentResult:
-        doctor = md.find_doctor_by_name(ctx.message)
+        doctor = repo.find_doctor_by_name(ctx.message)
         if not doctor:
             dept = md.match_department(ctx.message)
-            candidates = md.doctors_in(dept) if dept else []
+            candidates = repo.doctors_in(dept) if dept else []
             if len(candidates) == 1:
                 doctor = candidates[0]
             elif candidates:
@@ -177,9 +178,9 @@ class AppointmentAgent(BaseAgent):
             "location": "OPD Block, Room 204",
             "status": "Confirmed",
         }
-        ctx.session["appointments"].append(appointment)
+        self.store.add_appointment(ctx.session, appointment)
 
-        checklist = md.previsit_checklist(doctor["department"])
+        checklist = repo.previsit_checklist(doctor["department"])
         facts = (
             f"Appointment confirmed:\n"
             f"- ID: {apt_id}\n"
@@ -213,7 +214,7 @@ class AppointmentAgent(BaseAgent):
             return AgentResult(reply=fallback, agent=self.name,
                                quick_actions=["Book appointment"])
         appt = appts[-1]
-        doctor = next((d for d in md.DOCTORS if d["name"] == appt["doctor"]), None)
+        doctor = next((d for d in repo.all_doctors() if d["name"] == appt["doctor"]), None)
         options = doctor["slots"][1:] if doctor else ["Tomorrow 10:00 AM"]
         facts = (
             f"Existing appointment {appt['appointment_id']} with {appt['doctor']} "
@@ -239,6 +240,7 @@ class AppointmentAgent(BaseAgent):
             )
         appt = appts[-1]
         appt["status"] = "Cancelled"
+        self.store.update_appointment_status(appt["appointment_id"], "Cancelled")
         facts = f"Appointment {appt['appointment_id']} with {appt['doctor']} is now cancelled."
         fallback = (
             f"Done — appointment {appt['appointment_id']} with {appt['doctor']} "
@@ -259,7 +261,7 @@ class PreVisitAgent(BaseAgent):
     def handle(self, ctx: AgentContext) -> AgentResult:
         appts = ctx.session.get("appointments", [])
         dept = appts[-1]["department"] if appts else md.match_department(ctx.message)
-        checklist = md.previsit_checklist(dept)
+        checklist = repo.previsit_checklist(dept)
         dept_text = f"your {dept} visit" if dept else "your visit"
         facts = f"Pre-visit checklist for {dept_text}:\n" + "\n".join(
             f"- {item}" for item in checklist
@@ -282,7 +284,7 @@ class PrescriptionAgent(BaseAgent):
     name = "prescription_agent"
 
     def handle(self, ctx: AgentContext) -> AgentResult:
-        rx = md.SAMPLE_PRESCRIPTION
+        rx = repo.get_prescription()
         med_lines = [
             f"- {m['name']}: {m['frequency']}, {m['timing']}, for {m['duration']}"
             for m in rx["medicines"]
@@ -316,7 +318,7 @@ class DischargeAgent(BaseAgent):
     name = "discharge_agent"
 
     def handle(self, ctx: AgentContext) -> AgentResult:
-        ds = md.SAMPLE_DISCHARGE_SUMMARY
+        ds = repo.get_discharge_summary()
         facts = (
             f"Discharge summary (sample):\n"
             f"- Reason: {ds['reason']}; {ds['condition']}.\n"
@@ -354,7 +356,7 @@ class BillingInsuranceAgent(BaseAgent):
         return self._billing(ctx)
 
     def _billing(self, ctx: AgentContext) -> AgentResult:
-        bill = md.SAMPLE_BILL
+        bill = repo.get_bill()
         item_lines = [f"- {i['label']}: Rs.{i['amount']}" for i in bill["items"]]
         facts = (
             "Sample bill breakup (demo, would require login in production):\n"
@@ -377,7 +379,7 @@ class BillingInsuranceAgent(BaseAgent):
         )
 
     def _insurance(self, ctx: AgentContext) -> AgentResult:
-        ins = md.SAMPLE_INSURANCE
+        ins = repo.get_insurance()
         facts = (
             f"Sample insurance claim (demo, login required in production):\n"
             f"- Policy: {ins['policy']}\n"
