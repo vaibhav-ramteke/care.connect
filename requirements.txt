@@ -1,0 +1,12 @@
+# CarePath AI — backend dependencies
+# Target runtime: Python 3.14.6
+
+fastapi>=0.115
+uvicorn[standard]>=0.34
+pydantic>=2.10
+pydantic-settings>=2.7
+python-dotenv>=1.0
+
+# Optional but recommended: enables the LLM-powered agent path.
+# The backend runs fully on rule-based logic without an API key.
+anthropic>=0.69
