@@ -6,8 +6,10 @@ AI Agent** that routes patient queries to specialized agents — from symptom
 discovery through appointment booking, prescriptions, discharge, billing, and
 recovery — with healthcare safety guardrails and human escalation.
 
-This repository currently contains the **initial working backend** (FastAPI).
-No database yet — all state is in-memory.
+This repository contains the **working backend** (FastAPI) with a **SQLite
+database** (via SQLAlchemy). Reference data (departments, doctors, demo clinical
+records) and operational state (conversations, appointments, audit log, handoff
+queue) are all persisted — state survives a restart.
 
 ---
 
@@ -27,8 +29,11 @@ No database yet — all state is in-memory.
 - **Safety guardrails:** deterministic emergency red-flag detection (runs before
   any routing/LLM), mandatory medical disclaimers on clinical replies,
   medication-safety notes, distress detection, no diagnosis.
-- **Operations:** in-memory conversation store, audit log, escalation/handoff
+- **Operations:** persisted conversation store, audit log, escalation/handoff
   queue, and a lightweight analytics endpoint for an admin dashboard.
+- **Persistence:** SQLite via SQLAlchemy ORM. A single `carepath.db` file is
+  created and seeded automatically on first run — zero setup. Move to
+  Postgres/MySQL later by changing only the `DATABASE_URL`.
 
 ---
 
@@ -58,6 +63,14 @@ cp .env.example .env            # then edit .env
 ```
 
 Without a key the server starts in `rule-based` mode (see `/api/health`).
+
+### Database
+
+No setup needed. On startup the app creates a local SQLite file
+(`carepath.db`) and seeds it with reference data (departments, doctors, demo
+clinical/billing records) plus a few realistic sample conversations. Delete the
+file to start fresh — it is rebuilt on the next run. To point at another
+database, set `DATABASE_URL` (e.g. `DATABASE_URL=postgresql+psycopg://…`).
 
 ---
 
@@ -132,13 +145,18 @@ Pass the returned `session_id` back on the next call to keep conversation state
 
 ```
 app/
-  main.py               FastAPI app + routes
-  config.py             Settings (env / .env)
+  main.py               FastAPI app + routes (creates/seeds the DB on startup)
+  config.py             Settings (env / .env), incl. DATABASE_URL
   schemas.py            Request/response models
   llm.py                Fault-tolerant Anthropic Claude wrapper (hybrid core)
-  store.py              In-memory sessions, audit log, handoff queue
+  store.py              DB-backed sessions, appointments, audit log, handoff queue
+  db/
+    database.py         SQLAlchemy engine + session factory
+    models.py           ORM models (the database schema)
+    seed.py             Table creation + reference/demo data INSERTs
+    repository.py       Read-only reference-data queries
   data/
-    mock_data.py        Doctors, departments, slots, Rx, discharge, bill, insurance
+    mock_data.py        Seed data (doctors, depts, Rx, bill…) + symptom matching
   safety/
     guardrails.py       Emergency detection, disclaimers, distress
   agents/
