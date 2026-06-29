@@ -8,6 +8,11 @@ venv/
 # Environment / secrets
 .env
 
+# Local SQLite databases (seeded automatically on startup)
+*.db
+carepath.db
+carepath_test.db
+
 # Editor / OS
 .vscode/
 .idea/

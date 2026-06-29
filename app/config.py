@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     app_name: str = "CarePath AI"
     app_tagline: str = "Agentic Patient Journey Companion"
 
+    # Persistence. Defaults to a local SQLite file in the project root.
+    # Override with the DATABASE_URL env var (e.g. a Postgres URL) — only this
+    # one value needs to change to move to another database.
+    database_url: str = "sqlite:///./carepath.db"
+
     # LLM configuration. When anthropic_api_key is empty the backend runs
     # entirely on deterministic rule-based logic (the "hybrid" fallback).
     anthropic_api_key: str | None = None
