@@ -1,10 +1,12 @@
-"""Unit tests for mock-data lookups and integrity."""
+"""Unit tests for symptom matching (pure logic), DB-backed reference lookups,
+and seed-data integrity."""
 
 from __future__ import annotations
 
 import pytest
 
 from app.data import mock_data as md
+from app.db import repository as repo
 
 pytestmark = pytest.mark.unit
 
@@ -51,12 +53,12 @@ def test_match_department_no_match_returns_none():
 # Doctor lookups
 # --------------------------------------------------------------------------- #
 def test_doctors_in_filters_by_department():
-    ortho = md.doctors_in("Orthopedics")
+    ortho = repo.doctors_in("Orthopedics")
     assert ortho and all(d["department"] == "Orthopedics" for d in ortho)
 
 
 def test_doctors_in_unknown_department_empty():
-    assert md.doctors_in("Neurology") == []
+    assert repo.doctors_in("Neurology") == []
 
 
 @pytest.mark.parametrize(
@@ -68,24 +70,24 @@ def test_doctors_in_unknown_department_empty():
     ],
 )
 def test_find_doctor_by_name(text, expected_name):
-    doctor = md.find_doctor_by_name(text)
+    doctor = repo.find_doctor_by_name(text)
     assert doctor is not None and doctor["name"] == expected_name
 
 
 def test_find_doctor_by_name_no_match():
-    assert md.find_doctor_by_name("book dr nobody") is None
+    assert repo.find_doctor_by_name("book dr nobody") is None
 
 
 # --------------------------------------------------------------------------- #
-# Pre-visit checklist
+# Pre-visit checklist (DB-backed)
 # --------------------------------------------------------------------------- #
 def test_previsit_checklist_department_specific():
-    assert md.previsit_checklist("Cardiology") == md.PREVISIT_CHECKLISTS["Cardiology"]
+    assert repo.previsit_checklist("Cardiology") == md.PREVISIT_CHECKLISTS["Cardiology"]
 
 
 def test_previsit_checklist_falls_back_to_default():
-    assert md.previsit_checklist(None) == md.PREVISIT_CHECKLISTS["_default"]
-    assert md.previsit_checklist("Dermatology") == md.PREVISIT_CHECKLISTS["_default"]
+    assert repo.previsit_checklist(None) == md.PREVISIT_CHECKLISTS["_default"]
+    assert repo.previsit_checklist("Dermatology") == md.PREVISIT_CHECKLISTS["_default"]
 
 
 # --------------------------------------------------------------------------- #

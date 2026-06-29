@@ -7,6 +7,10 @@ pydantic>=2.10
 pydantic-settings>=2.7
 python-dotenv>=1.0
 
+# Persistence: SQLAlchemy ORM over SQLite (single-file, zero-config).
+# Swap to Postgres/MySQL later by changing only DATABASE_URL.
+SQLAlchemy>=2.0.36
+
 # Optional but recommended: enables the LLM-powered agent path.
 # The backend runs fully on rule-based logic without an API key.
 anthropic>=0.69

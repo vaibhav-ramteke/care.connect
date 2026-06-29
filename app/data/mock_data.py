@@ -1,7 +1,12 @@
-"""Mock hospital data for the hackathon MVP.
+"""Seed hospital data + symptom-matching logic for the MVP.
 
 Everything here is demo data — no real EHR / billing / insurance integration.
 Mirrors the sample data described in the requirements document (section 14).
+
+The constants below are the **seed source**: on startup they are loaded into the
+database (see :mod:`app.db.seed`). At runtime the app reads this same data back
+out of the database through :mod:`app.db.repository`. The keyword maps and
+:func:`match_department` are pure logic (not data) and stay here.
 """
 
 from __future__ import annotations
@@ -111,7 +116,7 @@ SPECIALTY_KEYWORDS: dict[str, list[str]] = {
 
 
 def match_department(text: str) -> str | None:
-    """Best-effort symptom/specialty -> department mapping."""
+    """Best-effort symptom/specialty -> department mapping (pure keyword logic)."""
     low = text.lower()
     for dept, keywords in SPECIALTY_KEYWORDS.items():
         if any(k in low for k in keywords):
@@ -119,20 +124,6 @@ def match_department(text: str) -> str | None:
     for dept, keywords in SYMPTOM_DEPARTMENT_MAP.items():
         if any(k in low for k in keywords):
             return dept
-    return None
-
-
-def doctors_in(department: str) -> list[dict]:
-    return [d for d in DOCTORS if d["department"] == department]
-
-
-def find_doctor_by_name(text: str) -> dict | None:
-    low = text.lower()
-    for d in DOCTORS:
-        # match on surname, e.g. "mehta" in "book dr mehta"
-        surname = d["name"].split()[-1].lower()
-        if surname in low:
-            return d
     return None
 
 
@@ -214,9 +205,3 @@ PREVISIT_CHECKLISTS: dict[str, list[str]] = {
         "Reach 15 minutes before the appointment",
     ],
 }
-
-
-def previsit_checklist(department: str | None) -> list[str]:
-    if department and department in PREVISIT_CHECKLISTS:
-        return PREVISIT_CHECKLISTS[department]
-    return PREVISIT_CHECKLISTS["_default"]

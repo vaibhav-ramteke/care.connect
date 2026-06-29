@@ -4,6 +4,11 @@ A `pytest` suite covering the backend end-to-end. All tests run **offline in
 deterministic rule-based mode** (the LLM is force-disabled in `conftest.py`), so
 they're fast, hermetic, and don't need an `ANTHROPIC_API_KEY`.
 
+Tests run against a **throwaway SQLite database** (`tests/carepath_test.db`):
+`conftest.py` points `DATABASE_URL` at it before the app imports, deletes any
+stale copy, seeds reference data once, and truncates operational tables between
+tests — so the suite never touches your real `carepath.db`.
+
 ## Install
 
 ```bash
@@ -39,7 +44,8 @@ pytest -k emergency        # tests matching a keyword
 ## Notes
 
 - `conftest.py` provides two autouse fixtures: `force_rule_based` (deterministic
-  output) and `reset_state` (clears the shared in-memory store between tests).
+  output) and `reset_state` (truncates operational DB tables between tests;
+  reference data is left in place).
 - To exercise the **LLM path** instead, you'd set `ANTHROPIC_API_KEY` and remove
   the `force_rule_based` fixture — but those calls are non-deterministic and cost
   money, so they're intentionally excluded from this suite.
