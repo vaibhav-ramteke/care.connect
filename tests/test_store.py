@@ -27,10 +27,14 @@ def test_create_session_generates_id_and_defaults(fresh_store):
     assert session["id"] in fresh_store.sessions
 
 
-def test_get_existing_session_returns_same_object(fresh_store):
+def test_get_existing_session_is_reloaded_from_db(fresh_store):
     first = fresh_store.get_or_create_session(None)
+    fresh_store.add_message(first, "user", "remember me")
     again = fresh_store.get_or_create_session(first["id"])
-    assert again is first
+    # Same persisted session (by id), with the message read back from the DB.
+    assert again["id"] == first["id"]
+    assert again["journey_stage"] == first["journey_stage"]
+    assert [m["text"] for m in again["history"]] == ["remember me"]
 
 
 def test_unknown_session_id_is_honoured_as_new_id(fresh_store):

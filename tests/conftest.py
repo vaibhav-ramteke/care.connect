@@ -1,26 +1,37 @@
 """Shared pytest fixtures for the CarePath AI test suite.
 
-Two things every test relies on:
+Three things every test relies on:
 
-1. **Deterministic (rule-based) mode.** The app is a hybrid: it uses Claude when
+1. **A clean, isolated database.** Before importing the app we point
+   ``DATABASE_URL`` at a throwaway SQLite file and delete any stale copy, so the
+   suite never touches the developer's real ``carepath.db``. The app seeds
+   reference data (departments, doctors, demo records) on import.
+
+2. **Deterministic (rule-based) mode.** The app is a hybrid: it uses Claude when
    an API key is configured, otherwise deterministic logic. Tests assert on the
-   deterministic fallback text/behaviour, so the ``force_rule_based`` autouse
-   fixture disables the LLM for every test — results stay stable whether or not
-   the developer running the suite happens to have ``ANTHROPIC_API_KEY`` set.
+   deterministic fallback, so ``force_rule_based`` disables the LLM everywhere.
 
-2. **Isolated in-memory state.** ``app.main`` builds singletons (store,
-   orchestrator) at import time. The ``reset_state`` autouse fixture clears the
-   shared store before each test so sessions / audit / handoffs don't leak
-   between tests.
+3. **Isolated operational state.** ``reset_state`` wipes sessions / messages /
+   appointments / audit / handoffs (but not reference data) before each test so
+   they don't leak between tests.
 """
 
 from __future__ import annotations
 
-import pytest
-from fastapi.testclient import TestClient
+import os
 
-import app.main as main_module
-from app.main import app
+# Must be set BEFORE any app module (and therefore the DB engine) is imported.
+_TEST_DB_PATH = os.path.join(os.path.dirname(__file__), "carepath_test.db")
+if os.path.exists(_TEST_DB_PATH):
+    os.remove(_TEST_DB_PATH)
+os.environ["DATABASE_URL"] = "sqlite:///" + _TEST_DB_PATH.replace("\\", "/")
+os.environ.pop("ANTHROPIC_API_KEY", None)
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+import app.main as main_module  # noqa: E402
+from app.main import app  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -36,18 +47,14 @@ def force_rule_based():
 
 @pytest.fixture(autouse=True)
 def reset_state():
-    """Wipe shared in-memory state so tests don't interfere with one another."""
-    store = main_module._store
-    store.sessions.clear()
-    store.audit.clear()
-    store.handoffs.clear()
-    store._apt_counter = 10245
+    """Wipe operational DB state so tests don't interfere with one another."""
+    main_module._store.reset()
     yield
 
 
 @pytest.fixture
 def store():
-    """The app's shared in-memory store (already reset by ``reset_state``)."""
+    """The app's shared (DB-backed) store, with operational state reset."""
     return main_module._store
 
 
