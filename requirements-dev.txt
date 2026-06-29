@@ -1,0 +1,7 @@
+# CarePath AI — test/dev dependencies
+# Install with:  pip install -r requirements-dev.txt
+-r requirements.txt
+
+pytest>=8.0
+# httpx is pulled in transitively by FastAPI's TestClient, pinned here for clarity.
+httpx>=0.27
