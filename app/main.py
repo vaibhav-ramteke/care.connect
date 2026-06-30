@@ -6,9 +6,11 @@ Interactive docs at /docs
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from .agents.journey import JourneyAgent
 from .agents.orchestrator import Orchestrator
@@ -48,9 +50,18 @@ _orchestrator = Orchestrator(_llm, _store)
 _journey = JourneyAgent()
 
 
+_STATIC_DIR = Path(__file__).parent / "static"
+
+
 @app.get("/", include_in_schema=False)
 def root() -> RedirectResponse:
     return RedirectResponse(url="/docs")
+
+
+@app.get("/chat", include_in_schema=False)
+def chat_ui() -> FileResponse:
+    """A minimal browser chat window for testing the assistant end-to-end."""
+    return FileResponse(_STATIC_DIR / "chat.html", media_type="text/html")
 
 
 @app.get("/api/health")

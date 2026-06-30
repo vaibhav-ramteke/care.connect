@@ -26,6 +26,13 @@ def test_root_redirects_to_docs(client):
     assert response.headers["location"] == "/docs"
 
 
+def test_chat_ui_is_served(client):
+    response = client.get("/chat")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "CarePath AI" in response.text
+
+
 # --------------------------------------------------------------------------- #
 # Doctors & departments
 # --------------------------------------------------------------------------- #

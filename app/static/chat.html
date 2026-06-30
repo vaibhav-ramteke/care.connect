@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CarePath AI — Chat</title>
+  <style>
+    :root {
+      --bg: #0f172a; --panel: #ffffff; --muted: #64748b; --line: #e2e8f0;
+      --brand: #0d9488; --brand-d: #0f766e; --user: #0d9488; --bot: #f1f5f9;
+      --danger: #dc2626; --warn: #b45309; --chip: #ecfeff; --chip-line: #a5f3fc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(160deg, #0f172a, #134e4a); color: #0f172a;
+      height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      padding: 12px 20px; color: #fff; display: flex; align-items: center;
+      gap: 12px; flex-wrap: wrap;
+    }
+    header h1 { font-size: 18px; margin: 0; font-weight: 650; }
+    header .tag { font-size: 12px; color: #99f6e4; }
+    header .spacer { flex: 1; }
+    .pill {
+      font-size: 12px; padding: 4px 10px; border-radius: 999px;
+      background: rgba(255,255,255,.12); color: #e2e8f0; border: 1px solid rgba(255,255,255,.2);
+    }
+    .pill b { color: #fff; }
+    .layout {
+      flex: 1; display: flex; gap: 16px; padding: 0 16px 16px; min-height: 0;
+    }
+    .card {
+      background: var(--panel); border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      display: flex; flex-direction: column; min-height: 0;
+    }
+    .chat { flex: 1; }
+    .side { width: 320px; flex-shrink: 0; padding: 16px; overflow-y: auto; }
+    @media (max-width: 800px) { .side { display: none; } }
+
+    #transcript { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+    .row { display: flex; }
+    .row.user { justify-content: flex-end; }
+    .bubble {
+      max-width: 78%; padding: 10px 14px; border-radius: 14px; line-height: 1.45;
+      white-space: pre-wrap; word-wrap: break-word; font-size: 14.5px;
+    }
+    .user .bubble { background: var(--user); color: #fff; border-bottom-right-radius: 4px; }
+    .bot .bubble { background: var(--bot); color: #0f172a; border-bottom-left-radius: 4px; }
+    .meta { font-size: 11px; color: var(--muted); margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge { background: #eef2ff; color: #3730a3; padding: 1px 7px; border-radius: 6px; }
+    .badge.llm { background: #ecfdf5; color: #065f46; }
+    .badge.rule { background: #f1f5f9; color: #475569; }
+    .disclaimer { margin-top: 8px; font-size: 12px; color: var(--warn); border-left: 3px solid var(--warn); padding-left: 8px; }
+    .emergency {
+      margin-top: 8px; font-size: 13px; color: #fff; background: var(--danger);
+      padding: 8px 10px; border-radius: 8px; font-weight: 600;
+    }
+    .handoff { margin-top: 8px; font-size: 12px; color: #7c2d12; background: #fff7ed; border: 1px solid #fed7aa; padding: 6px 10px; border-radius: 8px; }
+    .actions { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip {
+      font-size: 12.5px; padding: 6px 11px; border-radius: 999px; cursor: pointer;
+      background: var(--chip); border: 1px solid var(--chip-line); color: var(--brand-d);
+    }
+    .chip:hover { background: #cffafe; }
+
+    .composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
+    .composer input {
+      flex: 1; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 14.5px; outline: none;
+    }
+    .composer input:focus { border-color: var(--brand); }
+    button.send { background: var(--brand); color: #fff; border: 0; border-radius: 10px; padding: 0 18px; font-size: 14px; cursor: pointer; }
+    button.send:hover { background: var(--brand-d); }
+    button.send:disabled { opacity: .5; cursor: default; }
+
+    .side h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+    .side .block { margin-bottom: 18px; }
+    .kv { font-size: 13px; margin: 3px 0; }
+    .kv b { color: #0f172a; }
+    .appt { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 8px; font-size: 13px; }
+    .appt .st { font-weight: 600; }
+    .st.Confirmed { color: #047857; }
+    .st.Cancelled { color: var(--danger); }
+    .preset { display: block; width: 100%; text-align: left; margin: 4px 0; padding: 8px 10px; font-size: 13px;
+      background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; color: #0f172a; }
+    .preset:hover { background: #f1f5f9; }
+    .linkbtn { background: none; border: 0; color: var(--brand-d); cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline; }
+    .empty { color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🩺 CarePath AI</h1>
+    <span class="tag">Agentic Patient Journey Companion</span>
+    <span class="spacer"></span>
+    <span class="pill" id="modePill">mode: …</span>
+    <span class="pill" id="sessionPill">session: none</span>
+    <button class="linkbtn" style="color:#99f6e4" onclick="newConversation()">New conversation</button>
+  </header>
+
+  <div class="layout">
+    <div class="card chat">
+      <div id="transcript">
+        <div class="row bot"><div class="bubble">Hi! I'm CarePath AI. I can help you find a doctor, book or change an appointment, understand a prescription or bill, and more. Try a preset on the right, or just type below.</div></div>
+      </div>
+      <div class="composer">
+        <input id="input" placeholder="Type a message, e.g. “I have knee pain”…" autocomplete="off" />
+        <button class="send" id="sendBtn">Send</button>
+      </div>
+    </div>
+
+    <div class="card side">
+      <div class="block">
+        <h3>Appointment flow — try in order</h3>
+        <button class="preset" onclick="quick('I have knee pain. Which doctor should I consult?')">1. Find a doctor for knee pain</button>
+        <button class="preset" onclick="quick('Book an appointment with Dr. Kulkarni')">2. Book Dr. Kulkarni</button>
+        <button class="preset" onclick="quick('Reschedule my appointment')">3. Reschedule it</button>
+        <button class="preset" onclick="quick('Cancel my appointment')">4. Cancel it</button>
+      </div>
+      <div class="block">
+        <h3>Other scenarios</h3>
+        <button class="preset" onclick="quick('When should I take these medicines?')">Prescription help</button>
+        <button class="preset" onclick="quick('Can you show me my bill?')">Billing query</button>
+        <button class="preset" onclick="quick('Is my insurance claim approved?')">Insurance status</button>
+        <button class="preset" onclick="quick('I was discharged after surgery, what should I do at home?')">Discharge care</button>
+        <button class="preset" onclick="quick('My father has chest pain and breathing difficulty')">🚨 Emergency</button>
+        <button class="preset" onclick="quick('I want to speak to a human')">Talk to a human</button>
+      </div>
+      <div class="block">
+        <h3>Session state</h3>
+        <div id="sessionState" class="empty">No conversation yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let sessionId = null;
+    const transcript = document.getElementById("transcript");
+    const input = document.getElementById("input");
+    const sendBtn = document.getElementById("sendBtn");
+
+    function esc(s) {
+      return String(s ?? "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    }
+
+    function addUser(text) {
+      const row = document.createElement("div");
+      row.className = "row user";
+      row.innerHTML = `<div class="bubble">${esc(text)}</div>`;
+      transcript.appendChild(row);
+      transcript.scrollTop = transcript.scrollHeight;
+    }
+
+    function renderAppointment(data) {
+      const a = data && data.appointment;
+      if (!a) return "";
+      return `<div class="appt"><div><b>${esc(a.doctor)}</b> — ${esc(a.department)}</div>
+        <div>${esc(a.appointment_id)} · ${esc(a.time)} · ${esc(a.location || "")}</div>
+        <div>Fee: Rs.${esc(a.fee)} · <span class="st ${esc(a.status)}">${esc(a.status)}</span></div></div>`;
+    }
+
+    function addBot(body) {
+      const row = document.createElement("div");
+      row.className = "row bot";
+      const modeBadge = body.llm_used
+        ? `<span class="badge llm">LLM</span>`
+        : `<span class="badge rule">rule-based</span>`;
+
+      let html = `<div><div class="bubble">${esc(body.reply)}</div>`;
+      html += `<div class="meta"><span class="badge">${esc(body.agent)}</span>`
+            + `<span class="badge">intent: ${esc(body.intent)}</span>`
+            + `<span class="badge">stage: ${esc(body.journey_stage)}</span>${modeBadge}</div>`;
+
+      if (body.emergency) html += `<div class="emergency">🚨 Emergency detected — normal routing halted.</div>`;
+      if (body.disclaimer) html += `<div class="disclaimer">${esc(body.disclaimer)}</div>`;
+      if (body.handoff && body.handoff.triggered) {
+        html += `<div class="handoff">👤 Handoff to <b>${esc(body.handoff.team)}</b>`
+              + ` — ticket ${esc(body.handoff.ticket_id)}</div>`;
+      }
+      html += renderAppointment(body.data);
+
+      if (body.quick_actions && body.quick_actions.length) {
+        html += `<div class="actions">`
+              + body.quick_actions.map(a => `<span class="chip" data-a="${esc(a)}">${esc(a)}</span>`).join("")
+              + `</div>`;
+      }
+      html += `</div>`;
+      row.innerHTML = html;
+      row.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => quick(c.dataset.a)));
+      transcript.appendChild(row);
+      transcript.scrollTop = transcript.scrollHeight;
+    }
+
+    async function send(text) {
+      if (!text.trim()) return;
+      addUser(text);
+      input.value = "";
+      sendBtn.disabled = true;
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, session_id: sessionId, language: "en" }),
+        });
+        const body = await res.json();
+        if (!res.ok) { addBot({ reply: "Error: " + JSON.stringify(body), agent: "error", intent: "-", journey_stage: "-" }); return; }
+        sessionId = body.session_id;
+        document.getElementById("sessionPill").textContent = "session: " + sessionId;
+        addBot(body);
+        refreshSession();
+      } catch (e) {
+        addBot({ reply: "Network error: " + e.message, agent: "error", intent: "-", journey_stage: "-" });
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    }
+
+    function quick(text) { send(text); }
+
+    async function refreshSession() {
+      if (!sessionId) return;
+      const el = document.getElementById("sessionState");
+      try {
+        const res = await fetch("/api/sessions/" + encodeURIComponent(sessionId));
+        if (!res.ok) { el.innerHTML = `<span class="empty">No session record.</span>`; return; }
+        const s = await res.json();
+        let html = `<div class="kv">Stage: <b>${esc(s.journey_stage)}</b></div>`;
+        html += `<div class="kv">Next: ${esc(s.next_best_action)}</div>`;
+        html += `<div class="kv">Messages: <b>${(s.history || []).length}</b></div>`;
+        const appts = s.appointments || [];
+        html += `<h3 style="margin-top:12px">Appointments (${appts.length})</h3>`;
+        if (!appts.length) html += `<span class="empty">None booked yet.</span>`;
+        else appts.forEach(a => {
+          html += `<div class="appt"><div><b>${esc(a.doctor)}</b> · ${esc(a.appointment_id)}</div>
+            <div>${esc(a.time)} · <span class="st ${esc(a.status)}">${esc(a.status)}</span></div></div>`;
+        });
+        el.innerHTML = html;
+      } catch (e) { el.innerHTML = `<span class="empty">${esc(e.message)}</span>`; }
+    }
+
+    function newConversation() {
+      sessionId = null;
+      document.getElementById("sessionPill").textContent = "session: none";
+      document.getElementById("sessionState").innerHTML = `<span class="empty">No conversation yet.</span>`;
+      transcript.innerHTML = `<div class="row bot"><div class="bubble">New conversation started. How can I help?</div></div>`;
+      input.focus();
+    }
+
+    async function loadHealth() {
+      try {
+        const h = await (await fetch("/api/health")).json();
+        document.getElementById("modePill").innerHTML =
+          `mode: <b>${esc(h.mode)}</b>` + (h.model ? ` (${esc(h.model)})` : "");
+      } catch { document.getElementById("modePill").textContent = "mode: offline"; }
+    }
+
+    sendBtn.addEventListener("click", () => send(input.value));
+    input.addEventListener("keydown", e => { if (e.key === "Enter") send(input.value); });
+    loadHealth();
+    input.focus();
+  </script>
+</body>
+</html>
