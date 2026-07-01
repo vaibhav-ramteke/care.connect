@@ -164,9 +164,16 @@ app/
     orchestrator.py     Central Orchestrator AI Agent
     intent.py           Intent detection (LLM classify + keyword fallback)
     journey.py          Journey-stage detection
-    specialists.py      Symptom, DoctorFinder, Appointment, PreVisit,
-                        Prescription, Discharge, Billing/Insurance, General
     handoff.py          Human Handoff Agent
+    specialists/        One module per specialized agent
+      symptom.py          Symptom guidance (non-diagnostic)
+      doctor_finder.py    Doctor & department finder
+      appointment.py      Book / reschedule / cancel
+      previsit.py         Pre-visit checklist
+      prescription.py     Prescription explanation
+      discharge.py        Discharge / home-care
+      billing.py          Billing & insurance
+      general.py          General fallback
 requirements.txt
 .env.example
 ```
